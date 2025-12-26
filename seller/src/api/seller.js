@@ -63,3 +63,9 @@ export const updateMyAvatar = (file) => {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 };
+
+export const updateMyProfile = (payload) =>
+  apiRequest('/user/me', {
+    method: 'patch',
+    body: payload,
+  });

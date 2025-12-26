@@ -1,12 +1,11 @@
 import React, { useState } from "react";
-import { createProduct, uploadProductImage } from "../api/product";
+import { createProduct } from "../api/product";
 
 const AddProductModal = ({ onClose, onCreated, categories }) => {
   const [form, setForm] = useState({
     name: "",
     category_id: "",
     description: "",
-    image_url: "",
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -25,14 +24,6 @@ const AddProductModal = ({ onClose, onCreated, categories }) => {
         description: form.description,
         status: "active",
       });
-      const productId = created?.id || created?._id || created?.product_id || created?.product?.id;
-      if (productId && form.image_url.trim()) {
-        await uploadProductImage({
-          product_id: productId,
-          image_url: form.image_url.trim(),
-          is_main: true,
-        });
-      }
       onCreated?.();
       onClose?.();
     } catch (err) {
@@ -97,18 +88,6 @@ const AddProductModal = ({ onClose, onCreated, categories }) => {
               placeholder="Description"
               className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-800 placeholder-gray-400 shadow-sm focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
             ></textarea>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-800">Image URL</label>
-            <input
-              type="url"
-              value={form.image_url}
-              onChange={(e) => setForm((prev) => ({ ...prev, image_url: e.target.value }))}
-              placeholder="https://..."
-              className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-800 placeholder-gray-400 shadow-sm focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
-            />
-            <p className="mt-1 text-xs text-gray-500">Paste image URL; will be set as main image.</p>
           </div>
 
           <button

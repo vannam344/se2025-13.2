@@ -1,6 +1,13 @@
 import { Request, Response } from 'express';
 import { createOrder, listMyOrders, getMyOrderDetail, cancelMyOrder, confirmMyOrderReceived, getMyOrderStatusHistory } from './userOrder.service';
-import { listSellerOrders, getSellerOrderDetail, sellerConfirmOrder, sellerRejectOrder, sellerUpdateDeliveryStatus } from './sellerOrder.service';
+import {
+    listSellerOrders,
+    getSellerOrderDetail,
+    sellerConfirmOrder,
+    sellerRejectOrder,
+    sellerUpdateDeliveryStatus,
+    sellerSalesStats,
+} from './sellerOrder.service';
 import { adminListOrders, adminGetOrderDetail, adminUpdateOrderStatus, adminGetOrderStatusHistory, adminOrderStats, adminRefundOrder } from './adminOrder.service';
 import response from '../../utils/response';
 
@@ -71,6 +78,12 @@ export const OrderController = {
         const userId = req.user?.id as string;
         const order = await sellerUpdateDeliveryStatus(userId, req.params.id, req.body);
         return response.ok(res, order, 'order:update_status_success');
+    },
+
+    async sellerSalesStats(req: Request, res: Response) {
+        const userId = req.user?.id as string;
+        const data = await sellerSalesStats(userId, req.query as any);
+        return response.ok(res, data, 'order:list_success');
     },
 
     // Admin

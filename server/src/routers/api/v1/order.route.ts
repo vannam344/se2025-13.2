@@ -6,6 +6,7 @@ import {
     CreateOrderSchema,
     OrderIdParamSchema,
     SellerOrderListQuerySchema,
+    SellerSalesQuerySchema,
     SellerRejectOrderSchema,
     SellerUpdateDeliveryStatusSchema,
     AdminOrderListQuerySchema,
@@ -24,6 +25,7 @@ router.get('/user/me/orders/:id/status-history', authenticate, restrictTo('custo
 
 // Seller
 router.get('/user/seller/me/orders', authenticate, restrictTo('seller'), v({ query: SellerOrderListQuerySchema }), OrderController.sellerList);
+router.get('/user/seller/me/orders/sales', authenticate, restrictTo('seller'), v({ query: SellerSalesQuerySchema }), OrderController.sellerSalesStats);
 router.get('/user/seller/me/orders/:id', authenticate, restrictTo('seller'), v({ params: OrderIdParamSchema }), OrderController.sellerGetDetail);
 router.patch('/user/seller/me/orders/:id/confirm', authenticate, restrictTo('seller'), v({ params: OrderIdParamSchema }), OrderController.sellerConfirm);
 router.patch('/user/seller/me/orders/:id/reject', authenticate, restrictTo('seller'), v({ params: OrderIdParamSchema, body: SellerRejectOrderSchema }), OrderController.sellerReject);

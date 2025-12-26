@@ -96,6 +96,26 @@ export interface SellerOrderListQueryDto {
     limit?: number;
 }
 
+export type SellerSalesRange = 'past_6_months' | 'past_year' | 'all_time';
+
+export interface SellerSalesQueryDto {
+    range?: SellerSalesRange;
+}
+
+export interface SellerSalesPointDto {
+    month: string; // YYYY-MM
+    year: number;
+    label: string; // Jan, Feb, ...
+    total_revenue: number;
+    order_count: number;
+}
+
+export interface SellerSalesStatsDto {
+    range: SellerSalesRange;
+    points: SellerSalesPointDto[];
+    total_revenue: number;
+}
+
 export interface SellerRejectOrderDto {
     reason: string;
 }

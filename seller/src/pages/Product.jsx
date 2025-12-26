@@ -26,7 +26,14 @@ const Product = () => {
     setError('');
     try {
       const [productData, categoryData] = await Promise.all([fetchProducts(), fetchCategories()]);
-      const listProducts = extractList(productData, ['products']);
+      const listProductsRaw = extractList(productData, ['products']);
+      const listProducts = listProductsRaw.map((p) => ({
+        ...p,
+        cover:
+          p.cover ||
+          p.image ||
+          (Array.isArray(p.images) && p.images.length ? p.images[0].image_url || p.images[0].url : undefined),
+      }));
       const listCategories = extractList(categoryData, ['categories']);
       setProducts(listProducts);
       setCategories(listCategories);
@@ -185,25 +192,26 @@ const Product = () => {
               <tr>
                 <th className="px-4 py-3 text-left font-semibold">Category</th>
                 <th className="px-4 py-3 text-left font-semibold">Product</th>
+                <th className="px-4 py-3 text-left font-semibold">Image</th>
                 <th className="px-4 py-3 text-left font-semibold">Status</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="3" className="px-4 py-6 text-center text-sm text-gray-600">
+                  <td colSpan="4" className="px-4 py-6 text-center text-sm text-gray-600">
                     Loading products...
                   </td>
                 </tr>
               ) : products.length === 0 ? (
                 <tr>
-                  <td colSpan="3" className="px-4 py-6 text-center text-sm text-gray-600">
+                  <td colSpan="4" className="px-4 py-6 text-center text-sm text-gray-600">
                     No products yet.
                   </td>
                 </tr>
               ) : (
                 products.map((product) => (
-                  <tr key={product.id} className="border-b border-gray-100 hover:bg-gray-50">
+                  <tr key={product.id || product._id} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="px-4 py-3 text-gray-700">
                       {product.category?.name ||
                         product.category_name ||
@@ -211,6 +219,19 @@ const Product = () => {
                         'N/A'}
                     </td>
                     <td className="px-4 py-3 font-semibold text-gray-900">{product.name}</td>
+                    <td className="px-4 py-3">
+                      {product.cover ? (
+                        <img
+                          src={product.cover}
+                          alt={product.name}
+                          className="h-14 w-14 rounded-md object-cover border border-gray-200 bg-white"
+                        />
+                      ) : (
+                        <div className="h-14 w-14 rounded-md border border-dashed border-gray-300 bg-gray-50 grid place-items-center text-[10px] text-gray-500">
+                          No image
+                        </div>
+                      )}
+                    </td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full ${statusStyles[product.status]}`}>
                         {product.status}

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { RefreshCcw, Save, Upload } from 'lucide-react';
-import { getSellerProfile, getMyShop, updateMyShop, createMyShop, updateMyAvatar, changeMyPassword } from '../api/seller';
+import { getSellerProfile, getMyShop, updateMyShop, createMyShop, updateMyAvatar, changeMyPassword, updateMyProfile } from '../api/seller';
 import { fetchProvinces, fetchWards } from '../api/shipping';
 
 const Settings = () => {
@@ -35,6 +35,7 @@ const Settings = () => {
   const [changingPassword, setChangingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState('');
   const [passwordMessage, setPasswordMessage] = useState('');
+  const [profileSaving, setProfileSaving] = useState(false);
 
   const applyShopData = (s) => {
     const data = s?.data ?? s;
@@ -301,6 +302,87 @@ const Settings = () => {
     setMessage('Shop status is managed by admin approval.');
   };
 
+  const handleAvatarSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAvatarFile(file);
+    const previewUrl = URL.createObjectURL(file);
+    setAvatarPreview(previewUrl);
+  };
+
+  const handleAvatarUpload = async () => {
+    if (!avatarFile) {
+      setError('Please choose an image to upload.');
+      return;
+    }
+    setUploadingAvatar(true);
+    setError('');
+    setMessage('');
+    try {
+      const uploaded = await updateMyAvatar(avatarFile);
+      const data = uploaded?.data ?? uploaded;
+      const url = data?.profile_url || data?.avatar_url || data?.url || data?.user?.profile_url || avatarPreview;
+      if (url) {
+        setAvatarPreview(url);
+        setProfile((prev) => ({ ...prev, profile_url: url }));
+        const storedUser = JSON.parse(localStorage.getItem('user') || 'null');
+        if (storedUser) {
+          localStorage.setItem('user', JSON.stringify({ ...storedUser, profile_url: url }));
+        }
+      }
+      setMessage('Avatar updated.');
+      setAvatarFile(null);
+    } catch (err) {
+      setError(err.message || 'Failed to upload avatar.');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const saveProfile = async () => {
+    setProfileSaving(true);
+    setError('');
+    setMessage('');
+    const payload = {
+      first_name: profile.first_name?.trim() || '',
+      last_name: profile.last_name?.trim() || '',
+      email: profile.email?.trim() || '',
+      phone: profile.phone?.trim() || '',
+    };
+    if (!payload.first_name && !payload.last_name) {
+      setError('Please enter your name.');
+      setProfileSaving(false);
+      return;
+    }
+    if (!payload.email) {
+      setError('Email is required.');
+      setProfileSaving(false);
+      return;
+    }
+    try {
+      const updated = await updateMyProfile(payload);
+      const userData = updated?.user || updated?.data?.user || updated?.data || updated;
+      const merged = {
+        first_name: userData?.first_name ?? payload.first_name,
+        last_name: userData?.last_name ?? payload.last_name,
+        email: userData?.email ?? payload.email,
+        phone: userData?.phone ?? payload.phone,
+        profile_url: userData?.profile_url ?? profile.profile_url,
+      };
+      setProfile(merged);
+      if (merged.profile_url) setAvatarPreview(merged.profile_url);
+      const storedUser = JSON.parse(localStorage.getItem('user') || 'null') || {};
+      localStorage.setItem('user', JSON.stringify({ ...storedUser, ...merged }));
+      setMessage('Profile updated.');
+    } catch (err) {
+      const details =
+        err?.data && typeof err.data === 'object' ? JSON.stringify(err.data) : '';
+      setError(details ? `${err.message || 'Failed to update profile.'} (${details})` : err.message || 'Failed to update profile.');
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
   return (
     <div className="p-4 lg:p-5 space-y-4 bg-content-bg min-h-screen">
       <div className="rounded-xl bg-white border border-gray-200 p-4 shadow-sm flex items-center justify-between">
@@ -333,31 +415,100 @@ const Settings = () => {
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="lg:col-span-3 rounded-xl bg-white border border-gray-200 p-4 shadow-sm space-y-4">
           <h2 className="text-base font-semibold text-gray-900">Profile</h2>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-            <div className="w-24 h-24 rounded-full bg-gray-100 border border-gray-200 overflow-hidden flex items-center justify-center text-xl font-semibold text-gray-600">
-              {avatarPreview ? (
-                <img src={avatarPreview} alt="Avatar preview" className="w-full h-full object-cover" />
-              ) : (
-                (profile.first_name?.[0] || 'A').toUpperCase()
-              )}
-            </div>
-            <div className="flex-1 space-y-2">
-              <div className="grid gap-2 sm:grid-cols-2">
-                <div>
-                  <p className="text-xs text-gray-500">Name</p>
-                  <p className="text-sm font-semibold text-gray-900">
-                    {[profile.first_name, profile.last_name].filter(Boolean).join(' ') || '--'}
-                  </p>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col md:flex-row md:items-start gap-4">
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-24 h-24 rounded-full bg-gray-100 border border-gray-200 overflow-hidden flex items-center justify-center text-xl font-semibold text-gray-600">
+                  {avatarPreview ? (
+                    <img src={avatarPreview} alt="Avatar preview" className="w-full h-full object-cover" />
+                  ) : (
+                    (profile.first_name?.[0] || 'A').toUpperCase()
+                  )}
                 </div>
-                <div>
-                  <p className="text-xs text-gray-500">Email</p>
-                  <p className="text-sm font-semibold text-gray-900">{profile.email || '--'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Phone</p>
-                  <p className="text-sm font-semibold text-gray-900">{profile.phone || '--'}</p>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <label
+                    htmlFor="avatar-upload"
+                    className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 shadow-sm hover:bg-gray-50"
+                  >
+                    <Upload className="w-4 h-4 mr-1" />
+                    Choose image
+                  </label>
+                  <input id="avatar-upload" type="file" accept="image/*" className="hidden" onChange={handleAvatarSelect} />
+                  <button
+                    type="button"
+                    onClick={handleAvatarUpload}
+                    className="inline-flex items-center rounded-lg bg-gray-900 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-gray-800 disabled:opacity-60"
+                    disabled={uploadingAvatar || !avatarFile}
+                  >
+                    {uploadingAvatar ? 'Uploading...' : 'Upload avatar'}
+                  </button>
+                  {avatarFile ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAvatarFile(null);
+                        setAvatarPreview(profile.profile_url || '');
+                      }}
+                      className="inline-flex items-center rounded-lg border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 shadow-sm hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                  ) : null}
                 </div>
               </div>
+              <div className="flex-1 grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="block text-sm font-medium text-gray-800">First name</label>
+                  <input
+                    type="text"
+                    value={profile.first_name}
+                    onChange={(e) => setProfile((prev) => ({ ...prev, first_name: e.target.value }))}
+                    placeholder="First name"
+                    className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-800">Last name</label>
+                  <input
+                    type="text"
+                    value={profile.last_name}
+                    onChange={(e) => setProfile((prev) => ({ ...prev, last_name: e.target.value }))}
+                    placeholder="Last name"
+                    className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-800">Email</label>
+                  <input
+                    type="email"
+                    value={profile.email}
+                    onChange={(e) => setProfile((prev) => ({ ...prev, email: e.target.value }))}
+                    placeholder="Email"
+                    className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-800">Phone</label>
+                  <input
+                    type="tel"
+                    value={profile.phone}
+                    onChange={(e) => setProfile((prev) => ({ ...prev, phone: e.target.value }))}
+                    placeholder="Phone number"
+                    className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={saveProfile}
+                className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800 disabled:opacity-60"
+                disabled={profileSaving}
+              >
+                <Save className="w-4 h-4 inline mr-1" />
+                {profileSaving ? 'Saving...' : 'Save profile'}
+              </button>
             </div>
           </div>
         </div>

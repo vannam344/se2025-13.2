@@ -74,6 +74,15 @@ export const SellerOrderListQuerySchema = z
     .strict()
     .openapi('SellerOrderListQuery');
 
+export const SellerSalesRangeSchema = z.enum(['past_6_months', 'past_year', 'all_time']).openapi('SellerSalesRange');
+
+export const SellerSalesQuerySchema = z
+    .object({
+        range: SellerSalesRangeSchema.optional(),
+    })
+    .strict()
+    .openapi('SellerSalesQuery');
+
 export const UpdateOrderStatusSchema = z
     .object({
         status: OrderStatusSchema,
@@ -169,6 +178,26 @@ export const OrderSummaryResponseSchema = z
     })
     .strict()
     .openapi('OrderSummaryResponse');
+
+export const SellerSalesPointResponseSchema = z
+    .object({
+        month: z.string(),
+        year: z.number().int(),
+        label: z.string(),
+        total_revenue: z.number(),
+        order_count: z.number().int(),
+    })
+    .strict()
+    .openapi('SellerSalesPointResponse');
+
+export const SellerSalesResponseSchema = z
+    .object({
+        range: SellerSalesRangeSchema,
+        points: z.array(SellerSalesPointResponseSchema),
+        total_revenue: z.number(),
+    })
+    .strict()
+    .openapi('SellerSalesResponse');
 
 export const OrderDetailResponseSchema = OrderSummaryResponseSchema.extend({
     user_id: z.string().uuid(),
