@@ -1,4 +1,4 @@
-import { Transaction, Op, Includeable } from 'sequelize';
+import { Transaction, Op, Includeable, fn, col, literal } from 'sequelize';
 import { sequelize } from '../../models';
 import { Order, OrderStatus } from '../../models/Order.model';
 import { OrderItem } from '../../models/OrderItem.model';
@@ -22,6 +22,9 @@ import {
     SellerRejectOrderDto,
     SellerUpdateDeliveryStatusDto,
     SellerOrderListQueryDto,
+    SellerSalesQueryDto,
+    SellerSalesRange,
+    SellerSalesStatsDto,
 } from './order.dto';
 
 const orderDetailInclude: Includeable[] = [
@@ -167,6 +170,37 @@ const findSellerShopIds = async (userId: string): Promise<string[]> => {
     return shops.map((s) => s.id);
 };
 
+const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'];
+
+const startOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth(), 1, 0, 0, 0, 0);
+
+const buildMonthRange = (range: SellerSalesRange): { months?: Date[]; from?: Date; to?: Date } => {
+    const now = new Date();
+    const currentMonthStart = startOfMonth(now);
+
+    if (range === 'past_6_months') {
+        const months: Date[] = [];
+        for (let i = 5; i >= 0; i -= 1) {
+            const d = new Date(currentMonthStart);
+            d.setMonth(d.getMonth() - i);
+            months.push(d);
+        }
+        return { months, from: months[0], to: new Date(currentMonthStart.getFullYear(), currentMonthStart.getMonth() + 1, 1) };
+    }
+
+    if (range === 'past_year') {
+        const months: Date[] = [];
+        for (let i = 11; i >= 0; i -= 1) {
+            const d = new Date(currentMonthStart);
+            d.setMonth(d.getMonth() - i);
+            months.push(d);
+        }
+        return { months, from: months[0], to: new Date(currentMonthStart.getFullYear(), currentMonthStart.getMonth() + 1, 1) };
+    }
+
+    return { months: undefined, from: undefined, to: undefined };
+};
+
 export const listSellerOrders = async (userId: string, query: SellerOrderListQueryDto): Promise<OrderListResultDto> => {
     const shopIds = await findSellerShopIds(userId);
     const page = query.page ?? 1;
@@ -250,6 +284,71 @@ export const sellerConfirmOrder = async (userId: string, id: string): Promise<Or
         await order.reload({ include: orderDetailInclude, transaction: tx });
         return mapOrderDetail(order);
     });
+};
+
+export const sellerSalesStats = async (userId: string, query: SellerSalesQueryDto): Promise<SellerSalesStatsDto> => {
+    const shopIds = await findSellerShopIds(userId);
+    const range: SellerSalesRange = query.range ?? 'past_6_months';
+    const { months, from, to } = buildMonthRange(range);
+
+    const where: any = {
+        shop_id: { [Op.in]: shopIds },
+        status: 'completed',
+    };
+
+    if (from || to) {
+        where.created_at = {};
+        if (from) where.created_at[Op.gte] = from;
+        if (to) where.created_at[Op.lt] = to;
+    }
+
+    const rows = await Order.findAll({
+        attributes: [
+            [fn('DATE_TRUNC', 'month', col('created_at')), 'month'],
+            [fn('SUM', col('total_amount')), 'total_revenue'],
+            [fn('COUNT', col('id')), 'order_count'],
+        ],
+        where,
+        group: [literal('month')],
+        order: [[literal('month'), 'ASC']],
+    });
+
+    const monthMap = new Map<string, { total: number; count: number; date: Date }>();
+    for (const r of rows as any[]) {
+        const monthDate = new Date(r.get('month'));
+        const key = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, '0')}`;
+        monthMap.set(key, {
+            total: Number(r.get('total_revenue') ?? 0),
+            count: Number(r.get('order_count') ?? 0),
+            date: monthDate,
+        });
+    }
+
+    const points = (months ?? Array.from(monthMap.values()).map((v) => v.date))
+        .sort((a, b) => a.getTime() - b.getTime())
+        .reduce((acc: any[], date) => {
+            const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+            const existing = monthMap.get(key);
+            const total = existing?.total ?? 0;
+            const count = existing?.count ?? 0;
+            acc.push({
+                month: key,
+                year: date.getFullYear(),
+                label: monthLabels[date.getMonth()],
+                total_revenue: total,
+                order_count: count,
+            });
+            return acc;
+        }, []);
+
+    // If all_time with no orders, return empty list
+    const total_revenue = points.reduce((sum, p) => sum + Number(p.total_revenue || 0), 0);
+
+    return {
+        range,
+        points,
+        total_revenue,
+    };
 };
 
 export const sellerRejectOrder = async (

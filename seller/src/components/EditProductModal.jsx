@@ -14,6 +14,8 @@ const EditProductModal = ({ product, onClose, onSave, onReload, categories }) =>
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [imageFile, setImageFile] = useState(null);
+  const [images, setImages] = useState(product.images || []);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   useEffect(() => {
     setForm({
@@ -22,6 +24,7 @@ const EditProductModal = ({ product, onClose, onSave, onReload, categories }) =>
       category_id: product.category?.id || product.category_id || "",
       description: product.description || "",
     });
+    setImages(product.images || []);
   }, [product]);
 
   const handleSubmit = async (e) => {
@@ -54,11 +57,19 @@ const EditProductModal = ({ product, onClose, onSave, onReload, categories }) =>
     formData.append("file", imageFile);
     formData.append("product_id", product.id || product._id);
     try {
-      await uploadProductImage(formData);
+      setUploadingImage(true);
+      const uploaded = await uploadProductImage(formData);
+      const uploadedImage = uploaded?.data || uploaded;
+      if (uploadedImage) {
+        setImages((prev) => [...prev, uploadedImage]);
+      }
       setMessage("Image uploaded.");
+      setImageFile(null);
       await onReload?.();
     } catch (err) {
       setError(err?.message || "Upload failed.");
+    } finally {
+      setUploadingImage(false);
     }
   };
 
@@ -146,6 +157,28 @@ const EditProductModal = ({ product, onClose, onSave, onReload, categories }) =>
 
         <div className="mt-6 space-y-4 rounded-lg border border-gray-200 p-4">
           <p className="text-sm font-semibold text-gray-900">Images</p>
+          {images.length ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {images.map((img) => (
+                <div key={img.id || img.image_url || img.url} className="rounded-lg border border-gray-200 p-2 bg-gray-50">
+                  <div className="relative h-28 w-full overflow-hidden rounded-md bg-white">
+                    {img.image_url || img.url ? (
+                      <img src={img.image_url || img.url} alt="Product" className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-xs text-gray-500">No image url</div>
+                    )}
+                    {img.is_main ? (
+                      <span className="absolute left-2 top-2 rounded bg-emerald-600 px-2 py-0.5 text-[11px] font-semibold text-white">
+                        Main
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-gray-500">No images yet.</p>
+          )}
           <form className="space-y-3" onSubmit={handleUploadImage}>
             <input
               type="file"
@@ -156,9 +189,9 @@ const EditProductModal = ({ product, onClose, onSave, onReload, categories }) =>
             <button
               type="submit"
               className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800 disabled:opacity-60"
-              disabled={saving}
+              disabled={saving || uploadingImage}
             >
-              Upload image
+              {uploadingImage ? "Uploading..." : "Upload image"}
             </button>
           </form>
         </div>

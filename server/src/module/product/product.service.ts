@@ -273,9 +273,19 @@ export const getProducts = async (query: any) => {
             {
                 model: ProductImage,
                 as: 'images',
-                where: { is_main: true },
-                required: false
-            }
+                separate: true,
+                limit: 1,
+                order: [
+                    ['is_main', 'DESC'],
+                    ['created_at', 'DESC'],
+                ],
+                required: false,
+            },
+            {
+                model: Category,
+                as: 'category',
+                attributes: ['id', 'name', 'slug'],
+            },
         ],
         distinct: true
     });

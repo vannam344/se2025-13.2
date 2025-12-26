@@ -19,7 +19,11 @@ const AddProduct = () => {
     setError("");
     try {
       const [productData, categoryData] = await Promise.all([fetchProducts(), fetchCategories()]);
-      const listProducts = extractList(productData, ["products"]);
+      const listProductsRaw = extractList(productData, ["products"]);
+      const listProducts = listProductsRaw.map((p) => ({
+        ...p,
+        cover: p.cover || p.image || (Array.isArray(p.images) && p.images.length ? p.images[0].image_url || p.images[0].url : undefined),
+      }));
       const listCategories = extractList(categoryData, ["categories"]);
       setProducts(listProducts);
       setCategories(listCategories);
@@ -121,10 +125,8 @@ const AddProduct = () => {
         <table className="min-w-full divide-y divide-gray-100 bg-white border border-gray-200 rounded-lg">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Category</th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Product</th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Image</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Stock</th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Description</th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Actions</th>
             </tr>
@@ -132,20 +134,19 @@ const AddProduct = () => {
           <tbody className="divide-y divide-gray-100">
             {loading ? (
               <tr>
-                <td colSpan="6" className="px-4 py-6 text-center text-sm text-gray-600">
+                <td colSpan="4" className="px-4 py-6 text-center text-sm text-gray-600">
                   Loading...
                 </td>
               </tr>
             ) : filteredProducts.length === 0 ? (
               <tr>
-                <td colSpan="6" className="px-4 py-6 text-center text-sm text-gray-600">
+                <td colSpan="4" className="px-4 py-6 text-center text-sm text-gray-600">
                   No products available.
                 </td>
               </tr>
             ) : (
               filteredProducts.map((product) => (
                 <tr key={product.id || product._id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm font-semibold text-gray-900">{product.category?.name || product.category_name || "N/A"}</td>
                   <td className="px-4 py-3 text-sm text-gray-700">{product.name}</td>
                   <td className="px-4 py-3">
                     {product.cover || product.image ? (
@@ -154,7 +155,6 @@ const AddProduct = () => {
                       <div className="h-16 w-16 rounded-md bg-gray-100 grid place-items-center text-xs text-gray-500">No image</div>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-700">{product.stock ?? product.total_stock ?? "-"}</td>
                   <td className="px-4 py-3 text-sm text-gray-700">{product.description || "-"}</td>
                   <td className="px-4 py-3 text-sm">
                     <div className="flex gap-2">

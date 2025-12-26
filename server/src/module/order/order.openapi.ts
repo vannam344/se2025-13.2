@@ -3,6 +3,7 @@ import {
     CreateOrderSchema,
     OrderIdParamSchema,
     SellerOrderListQuerySchema,
+    SellerSalesQuerySchema,
     SellerRejectOrderSchema,
     SellerUpdateDeliveryStatusSchema,
     AdminOrderListQuerySchema,
@@ -10,6 +11,7 @@ import {
     OrderDetailResponseSchema,
     OrderStatusHistoryResponseSchema,
     OrderSummaryResponseSchema,
+    SellerSalesResponseSchema,
 } from './order.schema';
 
 export const registerOrderOpenApi = (registry: OpenAPIRegistry) => {
@@ -158,6 +160,27 @@ export const registerOrderOpenApi = (registry: OpenAPIRegistry) => {
                 content: {
                     'application/json': {
                         schema: OrderSummaryResponseSchema.array(),
+                    },
+                },
+            },
+        },
+    });
+
+    registry.registerPath({
+        method: 'get',
+        path: '/api/user/seller/me/orders/sales',
+        tags: ['Order - Seller'],
+        summary: 'Seller xem doanh thu theo th ·ng',
+        security: [{ BearerAuth: [] }],
+        request: {
+            query: SellerSalesQuerySchema,
+        },
+        responses: {
+            200: {
+                description: 'Th ·ng kAª doanh thu',
+                content: {
+                    'application/json': {
+                        schema: SellerSalesResponseSchema,
                     },
                 },
             },
